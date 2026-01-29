@@ -4,6 +4,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
+  // Helper: escape HTML to avoid injection
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  // Helper: produce initials from email/local-part
+  function getInitials(email) {
+    const local = (email || "").split("@")[0] || "";
+    const parts = local.split(/[\.\-_]/).filter(Boolean);
+    const initials = (parts.length ? parts : [local]).map(p => p[0]).slice(0,2).join("").toUpperCase();
+    return initials || "?";
+  }
+
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
@@ -12,6 +30,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      // Clear select options except placeholder
+      activitySelect.querySelectorAll("option:not([value=''])").forEach(o => o.remove());
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -20,20 +40,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+        // build participants markup
+        const participantsMarkup = details.participants && details.participants.length
+          ? `<ul class="participants-list">${details.participants.map(p => `<li class="participant-item"><span class="avatar">${getInitials(p)}</span><span class="participant-email">${escapeHtml(p)}</span></li>`).join("")}</ul>`
+          : `<p class="no-participants">No participants yet</p>`;
 
-          <!-- Participants section -->
+        activityCard.innerHTML = `
+          <h4>${escapeHtml(name)}</h4>
+          <p>${escapeHtml(details.description)}</p>
+          <p><strong>Schedule:</strong> ${escapeHtml(details.schedule)}</p>
+          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants">
             <h5>Participants</h5>
-            <ul class="participants-list">
-              ${details.participants && details.participants.length
-                ? details.participants.map((p) => `<li>${p}</li>`).join("")
-                : `<li class="empty">No participants yet</li>`}
-            </ul>
+            ${participantsMarkup}
           </div>
         `;
 
